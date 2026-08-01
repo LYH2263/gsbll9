@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/contest/rankings").permitAll()
                         .requestMatchers("/api/contest/announcements/latest").permitAll()
                         .requestMatchers("/api/contest/**").authenticated()
+                        .requestMatchers("/api/scoring/**").authenticated()
                         .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().permitAll()
                 )

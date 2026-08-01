@@ -13,4 +13,5 @@ public class ContestStatusResponse {
     private Long remainingTime; // 毫秒
     private Boolean canStartContest;
     private Boolean contestActive;
+    private Boolean scoringAllowed;
 }

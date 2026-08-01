@@ -34,6 +34,10 @@
         WHERE id = #{id}
     </update>
 
+    <update id="incrementScore">
+        UPDATE contest_users SET total_score = total_score + #{points} WHERE id = #{id}
+    </update>
+
     <delete id="delete">
         DELETE FROM contest_users WHERE id = #{id}
     </delete>

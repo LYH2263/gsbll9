@@ -133,9 +133,9 @@
                       </span>
                     </span>
                     <button
-                      v-if="!hint.unlocked"
-                      @click="unlockHint(hint)"
-                      :disabled="loading || !isContestActive"
+                  v-if="!hint.unlocked"
+                  @click="unlockHint(hint)"
+                  :disabled="loading || !scoringAllowed"
                       :class="[
                         'px-3 py-1 text-sm rounded transition',
                         canUnlockHint(index)
@@ -168,7 +168,7 @@
                 />
                 <button
                   @click="submitAnswer"
-                  :disabled="loading || !isContestActive"
+                  :disabled="loading || !scoringAllowed"
                   class="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition disabled:opacity-50"
                 >
                   提交
@@ -283,6 +283,7 @@ const contestStatus = ref('NOT_STARTED')
 const remainingTime = ref(0)
 const canStartContest = ref(false)
 const isContestActive = ref(false)
+const scoringAllowed = ref(false)
 const loading = ref(false)
 const contestStarted = ref(false)
 const currentQuestion = ref(null)
@@ -372,6 +373,7 @@ const loadContestStatus = async () => {
     remainingTime.value = status.remainingTime
     canStartContest.value = status.canStartContest
     isContestActive.value = status.contestActive
+    scoringAllowed.value = status.scoringAllowed ?? status.contestActive
   } catch (err) {
     console.error('Failed to load contest status:', err)
   }
@@ -483,7 +485,8 @@ const submitAnswer = async () => {
 
     await loadRankings()
   } catch (err) {
-    answerFeedback.value = { correct: false, message: '提交失败，请重试' }
+    const backendMsg = err.response?.data?.message
+    answerFeedback.value = { correct: false, message: backendMsg ? '❌ ' + backendMsg : '提交失败，请重试' }
     console.error('Failed to submit answer:', err)
   } finally {
     loading.value = false

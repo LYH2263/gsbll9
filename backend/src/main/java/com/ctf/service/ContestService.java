@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -40,6 +41,9 @@ public class ContestService {
 
     @Autowired
     private SubmissionMapper submissionMapper;
+
+    @Autowired
+    private ScoringService scoringService;
 
     @Autowired
     private ContestTimeUtil contestTimeUtil;
@@ -176,8 +180,11 @@ public class ContestService {
         return questionMapper.selectById(questionId);
     }
 
+    @Transactional
     public boolean submitAnswer(Integer userId, Integer questionId, String answer) {
         log.info("Submitting answer: userId={}, questionId={}", userId, questionId);
+
+        scoringService.assertScoringAllowed();
 
         ContestUser contestUser = contestUserMapper.selectByUserId(userId);
         if (contestUser == null) {
@@ -196,6 +203,10 @@ public class ContestService {
         Submission existing = submissionMapper.selectByContestUserAndQuestion(contestUser.getId(), questionId);
         boolean alreadyAnsweredCorrectly = existing != null && existing.getIsCorrect();
 
+        if (isCorrect && !alreadyAnsweredCorrectly) {
+            scoringService.awardSolve(contestUser.getId(), questionId, userId, question.getPoints());
+        }
+
         if (existing != null) {
             existing.setUserAnswer(answer);
             existing.setIsCorrect(isCorrect);
@@ -207,12 +218,6 @@ public class ContestService {
             submission.setUserAnswer(answer);
             submission.setIsCorrect(isCorrect);
             submissionMapper.insert(submission);
-        }
-
-        if (isCorrect && !alreadyAnsweredCorrectly) {
-            int score = contestUser.getTotalScore() + question.getPoints();
-            contestUser.setTotalScore(score);
-            contestUserMapper.update(contestUser);
         }
 
         log.info("Answer submitted: userId={}, questionId={}, correct={}", userId, questionId, isCorrect);

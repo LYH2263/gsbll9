@@ -13,6 +13,7 @@ public interface SubmissionMapper {
             @Param("contestUserId") Integer contestUserId,
             @Param("questionId") Integer questionId);
     List<Submission> selectByContestUserId(@Param("contestUserId") Integer contestUserId);
+    Integer countCorrectByQuestionId(@Param("questionId") Integer questionId);
     Integer insert(Submission submission);
     Integer update(Submission submission);
     Integer delete(@Param("id") Integer id);

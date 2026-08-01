@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ctf.mapper.FirstBloodMapper">
+    <select id="selectByQuestionId" resultType="FirstBlood">
+        SELECT * FROM first_bloods WHERE question_id = #{questionId}
+    </select>
+
+    <select id="selectAllWithDetails" resultType="com.ctf.dto.scoring.FirstBloodDTO">
+        SELECT
+            fb.id,
+            fb.question_id AS questionId,
+            q.title AS questionTitle,
+            fb.user_id AS userId,
+            u.student_id AS studentId,
+            u.full_name AS fullName,
+            fb.contest_user_id AS contestUserId,
+            fb.bonus_points AS bonusPoints,
+            fb.achieved_at AS achievedAt
+        FROM first_bloods fb
+        LEFT JOIN questions q ON fb.question_id = q.id
+        LEFT JOIN users u ON fb.user_id = u.id
+        ORDER BY fb.achieved_at ASC
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM first_bloods
+    </select>
+
+    <select id="sumBonusPoints" resultType="int">
+        SELECT COALESCE(SUM(bonus_points), 0) FROM first_bloods
+    </select>
+
+    <select id="selectActiveQuestionSolveStats" resultType="com.ctf.dto.scoring.QuestionSolveStat">
+        SELECT
+            q.id AS questionId,
+            q.points AS basePoints,
+            COALESCE(s.correct_count, 0) AS correctCount
+        FROM questions q
+        LEFT JOIN (
+            SELECT question_id, COUNT(*) AS correct_count
+            FROM submissions
+            WHERE is_correct = TRUE
+            GROUP BY question_id
+        ) s ON s.question_id = q.id
+        WHERE q.is_active = TRUE
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO first_bloods (question_id, user_id, contest_user_id, bonus_points)
+        VALUES (#{questionId}, #{userId}, #{contestUserId}, #{bonusPoints})
+    </insert>
+</mapper>

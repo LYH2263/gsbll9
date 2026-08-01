@@ -217,6 +217,143 @@
         </div>
       </div>
 
+      <!-- 一血记录（只读） -->
+      <div v-if="activeTab === 'firstbloods'" class="space-y-6">
+        <!-- 动态计分配置 -->
+        <div class="bg-white rounded-lg shadow-lg p-8">
+          <h2 class="text-2xl font-bold text-gray-800 mb-4">⚙️ 动态计分配置</h2>
+          <div class="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-700">
+            <p class="font-semibold mb-1">💡 公式</p>
+            <p class="text-sm">当前分 = max(最低分, 基础分 − 每解衰减 × 解出次数)，解出次数取<b>本次入账前</b>；已入账分数不回算。一血奖金仅在首次解出时发放。</p>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">最低分（scoring.min_points）</label>
+              <input v-model.number="scoringConfig.minPoints" type="number" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              <p class="text-xs text-gray-500 mt-1">题目当前分的下限</p>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">每解衰减（scoring.decay_step）</label>
+              <input v-model.number="scoringConfig.decayStep" type="number" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              <p class="text-xs text-gray-500 mt-1">每多一人解出，题目分下降值（0=不衰减）</p>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">一血奖金（scoring.first_blood_bonus）</label>
+              <input v-model.number="scoringConfig.firstBloodBonus" type="number" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              <p class="text-xs text-gray-500 mt-1">全场首杀额外加分</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div>
+              <label class="flex items-center">
+                <input v-model="scoringConfig.freezeOnEnd" type="checkbox" class="mr-2 h-4 w-4" />
+                <span class="text-sm font-semibold text-gray-700">赛后冻结计分（scoring.freeze_on_end）</span>
+              </label>
+              <p class="text-xs text-gray-500 mt-1">勾选：比赛结束后停止入账（默认）；取消：结束后仍可入账，用于加时赛演练</p>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">概览时区（scoring.overview_timezone）</label>
+              <input v-model="scoringConfig.overviewTimezone" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Asia/Shanghai" />
+              <p class="text-xs text-gray-500 mt-1">保留字段，供概览时间边界使用</p>
+            </div>
+          </div>
+          <div class="mt-6">
+            <button @click="saveScoringConfig" class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
+              💾 保存计分配置
+            </button>
+          </div>
+        </div>
+
+        <!-- 计分概览（只读，现场聚合） -->
+        <div class="bg-white rounded-lg shadow-lg p-8">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">📊 计分概览</h2>
+            <button
+              @click="loadScoringOverview"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            >
+              🔄 刷新
+            </button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="border rounded-lg p-4 bg-blue-50">
+              <p class="text-sm text-blue-700">全场正确解出总次数</p>
+              <p class="text-2xl font-bold text-blue-800 mt-1">{{ scoringOverview.totalCorrectSolves }}</p>
+              <p class="text-xs text-blue-600 mt-1">total_correct_solves</p>
+            </div>
+            <div class="border rounded-lg p-4 bg-red-50">
+              <p class="text-sm text-red-700">已产生一血题目数</p>
+              <p class="text-2xl font-bold text-red-800 mt-1">{{ scoringOverview.questionsWithFirstBlood }}</p>
+              <p class="text-xs text-red-600 mt-1">questions_with_first_blood</p>
+            </div>
+            <div class="border rounded-lg p-4 bg-green-50">
+              <p class="text-sm text-green-700">当前分=基础分题目数</p>
+              <p class="text-2xl font-bold text-green-800 mt-1">{{ scoringOverview.questionsAtBasePoints }}</p>
+              <p class="text-xs text-green-600 mt-1">questions_at_base_points</p>
+            </div>
+            <div class="border rounded-lg p-4 bg-yellow-50">
+              <p class="text-sm text-yellow-700">当前分=最低分题目数</p>
+              <p class="text-2xl font-bold text-yellow-800 mt-1">{{ scoringOverview.questionsAtMinPoints }}</p>
+              <p class="text-xs text-yellow-600 mt-1">questions_at_min_points</p>
+            </div>
+            <div class="border rounded-lg p-4 bg-purple-50">
+              <p class="text-sm text-purple-700">已发放一血奖金合计</p>
+              <p class="text-2xl font-bold text-purple-800 mt-1">{{ scoringOverview.totalFirstBloodBonusAwarded }}</p>
+              <p class="text-xs text-purple-600 mt-1">total_first_blood_bonus_awarded</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 一血列表 -->
+        <div class="bg-white rounded-lg shadow-lg p-8">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">🩸 一血记录</h2>
+            <button
+              @click="loadFirstBloods"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            >
+              🔄 刷新
+            </button>
+          </div>
+
+          <div class="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
+            <p class="font-semibold mb-1">💡 说明</p>
+            <ul class="text-sm space-y-1">
+              <li>• 一血由系统在题目首次被正确解出时自动记录，每题至多一条</li>
+              <li>• 本页为只读视图，不支持手动指定或修改</li>
+            </ul>
+          </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b-2 border-gray-300">
+                <th class="px-4 py-3 text-left font-semibold">题目ID</th>
+                <th class="px-4 py-3 text-left font-semibold">题目标题</th>
+                <th class="px-4 py-3 text-left font-semibold">学号</th>
+                <th class="px-4 py-3 text-left font-semibold">姓名</th>
+                <th class="px-4 py-3 text-left font-semibold">达成时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="fb in firstBloods" :key="fb.id" class="border-b hover:bg-gray-50">
+                <td class="px-4 py-3 font-mono">{{ fb.questionId }}</td>
+                <td class="px-4 py-3 font-medium">{{ fb.questionTitle || '-' }}</td>
+                <td class="px-4 py-3 font-mono">{{ fb.studentId || '-' }}</td>
+                <td class="px-4 py-3">{{ fb.fullName || '-' }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ formatTime(fb.achievedAt) }}</td>
+              </tr>
+              <tr v-if="firstBloods.length === 0" class="border-b">
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                  暂无一血记录
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        </div>
+      </div>
+
       <!-- 公告管理 -->
       <div v-if="activeTab === 'announcements'" class="bg-white rounded-lg shadow-lg p-8">
         <div class="flex justify-between items-center mb-6">
@@ -811,7 +948,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
-import { adminAPI } from '../api/client'
+import { adminAPI, scoringAPI } from '../api/client'
 import Modal from '../components/Modal.vue'
 import { useModal } from '../composables/useModal'
 
@@ -820,11 +957,12 @@ const authStore = useAuthStore()
 const { modalConfig, showAlert, showConfirm, showSuccess, showError, showWarning } = useModal()
 
 const activeTab = ref('users')
-const tabs = ['users', 'categories', 'questions', 'announcements', 'statistics', 'settings']
+const tabs = ['users', 'categories', 'questions', 'firstbloods', 'announcements', 'statistics', 'settings']
 const tabLabels = {
   users: '👥 用户管理',
   categories: '📂 分类管理',
   questions: '📝 题目管理',
+  firstbloods: '🩸 一血记录',
   announcements: '📢 公告管理',
   statistics: '📊 数据统计',
   settings: '⚙️ 比赛设置'
@@ -833,6 +971,21 @@ const tabLabels = {
 const users = ref([])
 const categories = ref([])
 const questions = ref([])
+const firstBloods = ref([])
+const scoringOverview = ref({
+  totalCorrectSolves: 0,
+  questionsWithFirstBlood: 0,
+  questionsAtBasePoints: 0,
+  questionsAtMinPoints: 0,
+  totalFirstBloodBonusAwarded: 0
+})
+const scoringConfig = ref({
+  minPoints: 1,
+  decayStep: 0,
+  firstBloodBonus: 0,
+  freezeOnEnd: true,
+  overviewTimezone: 'Asia/Shanghai'
+})
 
 const showUserModal = ref(false)
 const showCategoryModal = ref(false)
@@ -899,6 +1052,56 @@ const loadQuestions = async () => {
   } catch (err) {
     console.error('Failed to load questions:', err)
     showError('加载题目失败')
+  }
+}
+
+const loadFirstBloods = async () => {
+  try {
+    const response = await scoringAPI.getFirstBloods()
+    firstBloods.value = response.data.data || []
+  } catch (err) {
+    console.error('Failed to load first bloods:', err)
+    showError('加载一血记录失败')
+  }
+}
+
+const loadScoringOverview = async () => {
+  try {
+    const response = await scoringAPI.getOverview()
+    scoringOverview.value = response.data.data || scoringOverview.value
+  } catch (err) {
+    console.error('Failed to load scoring overview:', err)
+  }
+}
+
+const loadScoringConfig = async () => {
+  try {
+    const response = await scoringAPI.getConfig()
+    scoringConfig.value = response.data.data || scoringConfig.value
+  } catch (err) {
+    console.error('Failed to load scoring config:', err)
+    showError('加载计分配置失败')
+  }
+}
+
+const saveScoringConfig = async () => {
+  const { minPoints, decayStep, firstBloodBonus, freezeOnEnd, overviewTimezone } = scoringConfig.value
+  if (minPoints < 0 || decayStep < 0 || firstBloodBonus < 0) {
+    showError('分值/衰减/奖金均不能为负数')
+    return
+  }
+  if (!overviewTimezone || !overviewTimezone.trim()) {
+    showError('概览时区不能为空')
+    return
+  }
+  try {
+    await scoringAPI.updateConfig({ minPoints, decayStep, firstBloodBonus, freezeOnEnd, overviewTimezone: overviewTimezone.trim() })
+    showSuccess('计分配置保存成功')
+    await loadScoringConfig()
+    await loadScoringOverview()
+  } catch (err) {
+    console.error('Failed to save scoring config:', err)
+    showError('保存计分配置失败: ' + (err.response?.data?.message || err.message))
   }
 }
 
@@ -1380,6 +1583,11 @@ watch(activeTab, (newTab) => {
   }
   if (newTab === 'announcements') {
     loadAnnouncements()
+  }
+  if (newTab === 'firstbloods') {
+    loadFirstBloods()
+    loadScoringConfig()
+    loadScoringOverview()
   }
 })
 
