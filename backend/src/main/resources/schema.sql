@@ -122,3 +122,35 @@ CREATE TABLE IF NOT EXISTS announcements (
     INDEX idx_announcements_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='公告表';
 
+-- 创建一血记录表（动态计分与一血模块 P0，P1 扩展 bonus_awarded）
+CREATE TABLE IF NOT EXISTS first_bloods (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '一血记录ID',
+    question_id INT NOT NULL COMMENT '题目ID',
+    contest_user_id INT NOT NULL COMMENT '达成一血的比赛用户ID',
+    user_id INT NOT NULL COMMENT '达成一血的用户ID',
+    bonus_awarded INT NOT NULL DEFAULT 0 COMMENT '本次一血实际发放的奖金（P1）',
+    achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '达成时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY unique_first_blood_question (question_id),
+    INDEX idx_first_bloods_user (user_id),
+    INDEX idx_first_bloods_contest_user (contest_user_id),
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    FOREIGN KEY (contest_user_id) REFERENCES contest_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='一血记录表';
+
+-- 升级兼容：旧版 first_bloods 表补充 bonus_awarded 列（P1 一血奖金实际发放额）
+SET @col_exists = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'first_bloods'
+      AND COLUMN_NAME = 'bonus_awarded'
+);
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE first_bloods ADD COLUMN bonus_awarded INT NOT NULL DEFAULT 0 COMMENT ''本次一血实际发放的奖金（P1）'' AFTER user_id',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+

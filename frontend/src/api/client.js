@@ -76,4 +76,11 @@ export const adminAPI = {
   withdrawAnnouncement: (id) => apiClient.post(`/admin/announcements/${id}/withdraw`),
 }
 
+export const scoringAPI = {
+  getFirstBloods: () => apiClient.get('/scoring/first-bloods'),
+  getConfig: () => apiClient.get('/scoring/config'),
+  updateConfig: (config) => apiClient.put('/scoring/config', config),
+  getOverview: () => apiClient.get('/scoring/overview'),
+}
+
 export default apiClient

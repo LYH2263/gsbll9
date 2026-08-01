@@ -14,6 +14,23 @@
         SELECT * FROM submissions WHERE contest_user_id = #{contestUserId} ORDER BY submitted_at ASC
     </select>
 
+    <select id="countCorrectByQuestionExcludeUser" resultType="int">
+        SELECT COUNT(*) FROM submissions
+        WHERE question_id = #{questionId}
+          AND is_correct = TRUE
+          AND contest_user_id != #{excludeContestUserId}
+    </select>
+
+    <select id="countCorrectByQuestionId" resultType="int">
+        SELECT COUNT(*) FROM submissions
+        WHERE question_id = #{questionId}
+          AND is_correct = TRUE
+    </select>
+
+    <select id="countAllCorrect" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM submissions WHERE is_correct = TRUE
+    </select>
+
     <insert id="insert">
         INSERT INTO submissions (contest_user_id, question_id, user_answer, is_correct)
         VALUES (#{contestUserId}, #{questionId}, #{userAnswer}, #{isCorrect})

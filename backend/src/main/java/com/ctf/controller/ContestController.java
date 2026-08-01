@@ -13,6 +13,7 @@ import com.ctf.service.AnnouncementService;
 import com.ctf.service.AuthService;
 import com.ctf.service.ContestService;
 import com.ctf.service.HintService;
+import com.ctf.service.ScoringService;
 import com.ctf.util.ContestTimeUtil;
 import com.ctf.util.JwtTokenUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,9 @@ public class ContestController {
 
     @Autowired
     private HintService hintService;
+
+    @Autowired
+    private ScoringService scoringService;
 
     @Autowired
     private AnnouncementService announcementService;
@@ -143,8 +147,9 @@ public class ContestController {
                                             @RequestBody SubmitAnswerRequest request) {
         Integer userId = getUserIdFromToken(token);
 
-        if (!contestTimeUtil.isContestActive()) {
-            throw new IllegalArgumentException("Contest is not active");
+        if (!scoringService.isScoringAllowed()) {
+            String reason = scoringService.getScoringBlockedReason();
+            throw new IllegalArgumentException(reason != null ? reason : "当前赛期不允许提交");
         }
 
         boolean isCorrect = contestService.submitAnswer(userId, request.getQuestionId(), request.getAnswer());
@@ -231,8 +236,9 @@ public class ContestController {
             @PathVariable Integer hintId) {
         Integer userId = getUserIdFromToken(token);
 
-        if (!contestTimeUtil.isContestActive()) {
-            throw new IllegalArgumentException("Contest is not active");
+        if (!scoringService.isScoringAllowed()) {
+            String reason = scoringService.getScoringBlockedReason();
+            throw new IllegalArgumentException(reason != null ? reason : "当前赛期不允许解锁提示");
         }
 
         HintDTO hint = hintService.unlockHint(userId, hintId);

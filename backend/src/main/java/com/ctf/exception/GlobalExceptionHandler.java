@@ -23,6 +23,12 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(400, e.getMessage());
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ApiResponse<Void> handleIllegalStateException(IllegalStateException e) {
+        log.warn("Illegal state: {}", e.getMessage());
+        return ApiResponse.error(400, e.getMessage());
+    }
+
     @ExceptionHandler(SecurityException.class)
     public ApiResponse<Void> handleSecurityException(SecurityException e) {
         log.warn("Security violation: {}", e.getMessage());
