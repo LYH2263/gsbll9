@@ -112,6 +112,32 @@ CREATE TABLE IF NOT EXISTS hint_unlocks (
     INDEX idx_hint_unlocks_user (contest_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='提示解锁记录表';
 
+-- 创建一血记录表（每题全场仅一条，库级唯一约束）
+CREATE TABLE IF NOT EXISTS first_bloods (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '一血记录ID',
+    question_id INT NOT NULL COMMENT '题目ID',
+    user_id INT NOT NULL COMMENT '达成一血的用户ID',
+    contest_user_id INT NOT NULL COMMENT '比赛用户ID',
+    bonus_awarded INT DEFAULT 0 COMMENT '该次一血实际发放的一血奖金分值（解出当时快照，不回算）',
+    achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '达成时间',
+    UNIQUE KEY unique_first_blood_question (question_id),
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (contest_user_id) REFERENCES contest_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='一血记录表';
+
+-- 兼容升级：为已存在的 first_bloods 表补充 bonus_awarded 列（幂等，旧行默认为 0）
+SET @first_bloods_has_bonus := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'first_bloods' AND COLUMN_NAME = 'bonus_awarded'
+);
+SET @alter_first_bloods := IF(@first_bloods_has_bonus = 0,
+    'ALTER TABLE first_bloods ADD COLUMN bonus_awarded INT DEFAULT 0 COMMENT ''该次一血实际发放的一血奖金分值（解出当时快照，不回算）''',
+    'SELECT 1');
+PREPARE stmt_alter_first_bloods FROM @alter_first_bloods;
+EXECUTE stmt_alter_first_bloods;
+DEALLOCATE PREPARE stmt_alter_first_bloods;
+
 -- 创建公告表
 CREATE TABLE IF NOT EXISTS announcements (
     id INT PRIMARY KEY AUTO_INCREMENT COMMENT '公告ID',

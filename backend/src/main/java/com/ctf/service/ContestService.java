@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -43,6 +44,9 @@ public class ContestService {
 
     @Autowired
     private ContestTimeUtil contestTimeUtil;
+
+    @Autowired
+    private ScoringService scoringService;
 
     public void initializeContestForUser(Integer userId) {
         log.info("Initializing contest for user: userId={}", userId);
@@ -176,6 +180,7 @@ public class ContestService {
         return questionMapper.selectById(questionId);
     }
 
+    @Transactional
     public boolean submitAnswer(Integer userId, Integer questionId, String answer) {
         log.info("Submitting answer: userId={}, questionId={}", userId, questionId);
 
@@ -196,9 +201,17 @@ public class ContestService {
         Submission existing = submissionMapper.selectByContestUserAndQuestion(contestUser.getId(), questionId);
         boolean alreadyAnsweredCorrectly = existing != null && existing.getIsCorrect();
 
+        // B1：先于 submissions 落库调用计分，保证 solve_count 取「入账前」时点；同一事务内不撕裂
+        if (isCorrect && !alreadyAnsweredCorrectly) {
+            scoringService.recordCorrectSolve(contestUser, question);
+        }
+
         if (existing != null) {
             existing.setUserAnswer(answer);
-            existing.setIsCorrect(isCorrect);
+            // 已解出的题不允许被后续错误提交降级：防止全场解出次数失真与同一题重复入账（B1/§12 数据完整性）
+            if (!alreadyAnsweredCorrectly) {
+                existing.setIsCorrect(isCorrect);
+            }
             submissionMapper.update(existing);
         } else {
             Submission submission = new Submission();
@@ -207,12 +220,6 @@ public class ContestService {
             submission.setUserAnswer(answer);
             submission.setIsCorrect(isCorrect);
             submissionMapper.insert(submission);
-        }
-
-        if (isCorrect && !alreadyAnsweredCorrectly) {
-            int score = contestUser.getTotalScore() + question.getPoints();
-            contestUser.setTotalScore(score);
-            contestUserMapper.update(contestUser);
         }
 
         log.info("Answer submitted: userId={}, questionId={}, correct={}", userId, questionId, isCorrect);

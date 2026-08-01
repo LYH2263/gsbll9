@@ -13,6 +13,7 @@ import com.ctf.service.AnnouncementService;
 import com.ctf.service.AuthService;
 import com.ctf.service.ContestService;
 import com.ctf.service.HintService;
+import com.ctf.service.ScoringService;
 import com.ctf.util.ContestTimeUtil;
 import com.ctf.util.JwtTokenUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,9 @@ public class ContestController {
 
     @Autowired
     private HintService hintService;
+
+    @Autowired
+    private ScoringService scoringService;
 
     @Autowired
     private AnnouncementService announcementService;
@@ -143,7 +147,8 @@ public class ContestController {
                                             @RequestBody SubmitAnswerRequest request) {
         Integer userId = getUserIdFromToken(token);
 
-        if (!contestTimeUtil.isContestActive()) {
+        // C1/C2：赛期门禁由计分模块判定（含 scoring.freeze_on_end=false 的加时场景），Service 层二次校验兜底
+        if (!scoringService.isScoringOpen()) {
             throw new IllegalArgumentException("Contest is not active");
         }
 
