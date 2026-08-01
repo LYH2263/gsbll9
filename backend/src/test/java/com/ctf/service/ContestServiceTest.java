@@ -43,6 +43,9 @@ class ContestServiceTest {
     @Mock
     private ContestTimeUtil contestTimeUtil;
 
+    @Mock
+    private ScoringService scoringService;
+
     @InjectMocks
     private ContestService contestService;
 
@@ -62,8 +65,8 @@ class ContestServiceTest {
     }
 
     @Test
-    @DisplayName("首次提交正确答案 → 分数增加")
-    void submitCorrectAnswerFirstTime_shouldIncreaseScore() {
+    @DisplayName("首次提交正确答案 → 委托 ScoringService 计分")
+    void submitCorrectAnswerFirstTime_shouldDelegateToScoringService() {
         ContestUser contestUser = createContestUser(0);
         Question question = createQuestion(correctAnswer, 100);
 
@@ -75,8 +78,8 @@ class ContestServiceTest {
 
         assertTrue(result);
         verify(submissionMapper).insert(any(Submission.class));
-        verify(contestUserMapper).update(contestUser);
-        assertEquals(100, contestUser.getTotalScore());
+        // 计分与一血落库委托 ScoringService（条款 A2）；ContestService 不再自行累加分数
+        verify(scoringService).awardForCorrectSubmission(contestUser, question);
     }
 
     @Test

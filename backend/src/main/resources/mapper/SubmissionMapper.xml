@@ -14,6 +14,28 @@
         SELECT * FROM submissions WHERE contest_user_id = #{contestUserId} ORDER BY submitted_at ASC
     </select>
 
+    <select id="countCorrectByQuestionExcludingUser" resultType="int">
+        SELECT COUNT(*) FROM submissions
+        WHERE question_id = #{questionId}
+          AND is_correct = TRUE
+          AND contest_user_id != #{contestUserId}
+    </select>
+
+    <select id="countTotalCorrectSolves" resultType="long">
+        SELECT COUNT(*) FROM submissions WHERE is_correct = TRUE
+    </select>
+
+    <select id="selectSolveCountsPerQuestion" resultType="com.ctf.dto.scoring.QuestionSolveCount">
+        SELECT
+            q.id AS questionId,
+            q.points AS points,
+            COUNT(CASE WHEN s.is_correct = TRUE THEN 1 END) AS solveCount
+        FROM questions q
+        LEFT JOIN submissions s ON q.id = s.question_id
+        WHERE q.is_active = TRUE
+        GROUP BY q.id, q.points
+    </select>
+
     <insert id="insert">
         INSERT INTO submissions (contest_user_id, question_id, user_answer, is_correct)
         VALUES (#{contestUserId}, #{questionId}, #{userAnswer}, #{isCorrect})

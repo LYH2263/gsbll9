@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ctf.mapper.FirstBloodMapper">
+    <select id="selectByQuestionId" resultType="FirstBlood">
+        SELECT * FROM first_bloods WHERE question_id = #{questionId}
+    </select>
+
+    <select id="selectAll" resultType="FirstBlood">
+        SELECT * FROM first_bloods ORDER BY achieved_at ASC
+    </select>
+
+    <select id="countByQuestionId" resultType="int">
+        SELECT COUNT(*) FROM first_bloods WHERE question_id = #{questionId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO first_bloods (question_id, user_id, contest_user_id, awarded_bonus)
+        VALUES (#{questionId}, #{userId}, #{contestUserId}, #{awardedBonus})
+    </insert>
+
+    <select id="countQuestionsWithFirstBlood" resultType="long">
+        SELECT COUNT(*) FROM first_bloods
+    </select>
+
+    <select id="sumAwardedBonus" resultType="long">
+        SELECT COALESCE(SUM(COALESCE(awarded_bonus, 0)), 0) FROM first_bloods
+    </select>
+</mapper>

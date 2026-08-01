@@ -112,6 +112,20 @@ CREATE TABLE IF NOT EXISTS hint_unlocks (
     INDEX idx_hint_unlocks_user (contest_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='提示解锁记录表';
 
+-- 创建一血记录表（动态计分模块 P0：全场第一次正确解出某题的事件，一题至多一条）
+CREATE TABLE IF NOT EXISTS first_bloods (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '一血记录ID',
+    question_id INT NOT NULL COMMENT '题目ID（一血粒度：题目全局）',
+    user_id INT NOT NULL COMMENT '达成一血的用户ID',
+    contest_user_id INT COMMENT '比赛用户ID（可选冗余，便于与 contest_users/submissions 对齐）',
+    awarded_bonus INT DEFAULT 0 COMMENT 'P2 扩展：达成该一血时实际发放的一血奖金分值（B2：不回算，用于 §12.5 求和）',
+    achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '达成一血时间',
+    UNIQUE KEY unique_first_blood_question (question_id),
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_first_bloods_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='一血记录表';
+
 -- 创建公告表
 CREATE TABLE IF NOT EXISTS announcements (
     id INT PRIMARY KEY AUTO_INCREMENT COMMENT '公告ID',
