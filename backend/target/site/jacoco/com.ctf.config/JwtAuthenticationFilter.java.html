@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ctf-contest</a> &gt; <a href="index.source.html" class="el_package">com.ctf.config</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package com.ctf.config;
+
+import com.ctf.util.JwtTokenUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.ArrayList;
+
+<span class="nc" id="L16">@Slf4j</span>
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtTokenUtil jwtTokenUtil;
+
+<span class="nc" id="L21">    public JwtAuthenticationFilter(JwtTokenUtil jwtTokenUtil) {</span>
+<span class="nc" id="L22">        this.jwtTokenUtil = jwtTokenUtil;</span>
+<span class="nc" id="L23">    }</span>
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
+        try {
+<span class="nc" id="L30">            String token = getTokenFromRequest(request);</span>
+
+<span class="nc bnc" id="L32" title="All 4 branches missed.">            if (token != null &amp;&amp; jwtTokenUtil.validateToken(token)) {</span>
+<span class="nc" id="L33">                Integer userId = jwtTokenUtil.getUserIdFromToken(token);</span>
+<span class="nc" id="L34">                String studentId = jwtTokenUtil.getStudentIdFromToken(token);</span>
+<span class="nc" id="L35">                String role = jwtTokenUtil.getRoleFromToken(token);</span>
+
+<span class="nc" id="L37">                UsernamePasswordAuthenticationToken authentication =</span>
+                        new UsernamePasswordAuthenticationToken(userId, null, new ArrayList&lt;&gt;());
+<span class="nc" id="L39">                authentication.setDetails(studentId);</span>
+<span class="nc" id="L40">                SecurityContextHolder.getContext().setAuthentication(authentication);</span>
+
+<span class="nc" id="L42">                log.debug(&quot;JWT token validated for user: userId={}, studentId={}&quot;, userId, studentId);</span>
+            }
+<span class="nc" id="L44">        } catch (Exception e) {</span>
+<span class="nc" id="L45">            log.warn(&quot;JWT token validation failed: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L46">        }</span>
+
+<span class="nc" id="L48">        filterChain.doFilter(request, response);</span>
+<span class="nc" id="L49">    }</span>
+
+    private String getTokenFromRequest(HttpServletRequest request) {
+<span class="nc" id="L52">        String bearerToken = request.getHeader(&quot;Authorization&quot;);</span>
+<span class="nc bnc" id="L53" title="All 4 branches missed.">        if (bearerToken != null &amp;&amp; bearerToken.startsWith(&quot;Bearer &quot;)) {</span>
+<span class="nc" id="L54">            return bearerToken.substring(7);</span>
+        }
+<span class="nc" id="L56">        return null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

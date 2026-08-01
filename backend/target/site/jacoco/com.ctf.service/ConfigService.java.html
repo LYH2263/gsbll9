@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConfigService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ctf-contest</a> &gt; <a href="index.source.html" class="el_package">com.ctf.service</a> &gt; <span class="el_source">ConfigService.java</span></div><h1>ConfigService.java</h1><pre class="source lang-java linenums">package com.ctf.service;
+
+import com.ctf.dto.ContestConfigDTO;
+import com.ctf.entity.ContestConfig;
+import com.ctf.mapper.ContestConfigMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+<span class="nc" id="L10">@Slf4j</span>
+@Service
+<span class="nc" id="L12">public class ConfigService {</span>
+
+    @Autowired
+    private ContestConfigMapper contestConfigMapper;
+
+    public ContestConfigDTO getContestConfig() {
+<span class="nc" id="L18">        String readyTime = getConfigValue(&quot;contest.readyTime&quot;, &quot;2025-01-04 15:20:00&quot;);</span>
+<span class="nc" id="L19">        String startTime = getConfigValue(&quot;contest.startTime&quot;, &quot;2025-01-04 15:30:00&quot;);</span>
+<span class="nc" id="L20">        String endTime = getConfigValue(&quot;contest.endTime&quot;, &quot;2025-01-04 16:30:00&quot;);</span>
+<span class="nc" id="L21">        String resultsTime = getConfigValue(&quot;contest.resultsTime&quot;, &quot;2025-01-04 17:00:00&quot;);</span>
+        
+<span class="nc" id="L23">        return ContestConfigDTO.builder()</span>
+<span class="nc" id="L24">                .startTime(startTime)</span>
+<span class="nc" id="L25">                .readyTime(readyTime)</span>
+<span class="nc" id="L26">                .endTime(endTime)</span>
+<span class="nc" id="L27">                .resultsTime(resultsTime)</span>
+<span class="nc" id="L28">                .build();</span>
+    }
+
+    public void updateContestConfig(ContestConfigDTO config) {
+        try {
+<span class="nc" id="L33">            updateConfigValue(&quot;contest.readyTime&quot;, config.getReadyTime());</span>
+<span class="nc" id="L34">            updateConfigValue(&quot;contest.startTime&quot;, config.getStartTime());</span>
+<span class="nc" id="L35">            updateConfigValue(&quot;contest.endTime&quot;, config.getEndTime());</span>
+<span class="nc" id="L36">            updateConfigValue(&quot;contest.resultsTime&quot;, config.getResultsTime());</span>
+            
+<span class="nc" id="L38">            log.info(&quot;比赛配置已更新: {}&quot;, config);</span>
+<span class="nc" id="L39">        } catch (Exception e) {</span>
+<span class="nc" id="L40">            log.error(&quot;更新比赛配置失败&quot;, e);</span>
+<span class="nc" id="L41">            throw new RuntimeException(&quot;更新配置失败: &quot; + e.getMessage());</span>
+<span class="nc" id="L42">        }</span>
+<span class="nc" id="L43">    }</span>
+    
+    private String getConfigValue(String key, String defaultValue) {
+<span class="nc" id="L46">        ContestConfig config = contestConfigMapper.selectByKey(key);</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        return config != null ? config.getConfigValue() : defaultValue;</span>
+    }
+    
+    private void updateConfigValue(String key, String value) {
+<span class="nc" id="L51">        ContestConfig config = ContestConfig.builder()</span>
+<span class="nc" id="L52">                .configKey(key)</span>
+<span class="nc" id="L53">                .configValue(value)</span>
+<span class="nc" id="L54">                .build();</span>
+<span class="nc" id="L55">        contestConfigMapper.upsert(config);</span>
+<span class="nc" id="L56">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

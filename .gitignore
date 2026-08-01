@@ -1,0 +1,17 @@
+/.git
+/.idea
+/.vscode
+/target
+/*.iml
+/.DS_Store
+/logs
+/node_modules
+/dist
+__pycache__
+*.pyc
+.venv
+.env
+.env.local
+*.log
+题目.md
+对话/

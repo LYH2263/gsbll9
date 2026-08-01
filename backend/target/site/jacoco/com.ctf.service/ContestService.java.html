@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContestService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ctf-contest</a> &gt; <a href="index.source.html" class="el_package">com.ctf.service</a> &gt; <span class="el_source">ContestService.java</span></div><h1>ContestService.java</h1><pre class="source lang-java linenums">package com.ctf.service;
+
+import com.ctf.dto.RankingItem;
+import com.ctf.entity.Category;
+import com.ctf.entity.ContestUser;
+import com.ctf.entity.Question;
+import com.ctf.entity.Submission;
+import com.ctf.entity.User;
+import com.ctf.mapper.CategoryMapper;
+import com.ctf.mapper.ContestUserMapper;
+import com.ctf.mapper.QuestionMapper;
+import com.ctf.mapper.SubmissionMapper;
+import com.ctf.mapper.UserMapper;
+import com.ctf.util.ContestTimeUtil;
+import com.ctf.util.JsonUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+
+<span class="fc" id="L25">@Slf4j</span>
+@Service
+<span class="fc" id="L27">public class ContestService {</span>
+
+    @Autowired
+    private ContestUserMapper contestUserMapper;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private QuestionMapper questionMapper;
+
+    @Autowired
+    private CategoryMapper categoryMapper;
+
+    @Autowired
+    private SubmissionMapper submissionMapper;
+
+    @Autowired
+    private ContestTimeUtil contestTimeUtil;
+
+    public void initializeContestForUser(Integer userId) {
+<span class="nc" id="L48">        log.info(&quot;Initializing contest for user: userId={}&quot;, userId);</span>
+
+<span class="nc" id="L50">        ContestUser existing = contestUserMapper.selectByUserId(userId);</span>
+        
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (existing != null) {</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            if (isContestRecordValid(existing)) {</span>
+<span class="nc" id="L54">                log.info(&quot;User has valid contest record, skipping re-initialization: userId={}&quot;, userId);</span>
+<span class="nc" id="L55">                return;</span>
+            } else {
+<span class="nc" id="L57">                log.warn(&quot;Found invalid/corrupted contest record for user: userId={}, will reset and re-initialize&quot;, userId);</span>
+<span class="nc" id="L58">                log.warn(&quot;Corrupted record details: selectedQuestions={}, currentQuestionId={}, submitted={}&quot;,</span>
+<span class="nc" id="L59">                        existing.getSelectedQuestions(), existing.getCurrentQuestionId(), existing.getSubmitted());</span>
+<span class="nc" id="L60">                contestUserMapper.delete(existing.getId());</span>
+<span class="nc" id="L61">                log.info(&quot;Deleted corrupted contest record for user: userId={}&quot;, userId);</span>
+            }
+        }
+
+<span class="nc" id="L65">        List&lt;Integer&gt; selectedQuestionIds = selectRandomQuestions();</span>
+
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (selectedQuestionIds.isEmpty()) {</span>
+<span class="nc" id="L68">            log.error(&quot;No questions available for contest initialization! userId={}&quot;, userId);</span>
+<span class="nc" id="L69">            log.error(&quot;Please check: 1) Are there any active categories? 2) Do categories have active questions?&quot;);</span>
+<span class="nc" id="L70">            throw new IllegalStateException(&quot;No questions available for contest. Please contact administrator.&quot;);</span>
+        }
+
+<span class="nc" id="L73">        ContestUser contestUser = new ContestUser();</span>
+<span class="nc" id="L74">        contestUser.setUserId(userId);</span>
+<span class="nc" id="L75">        contestUser.setSelectedQuestions(JsonUtil.toJson(selectedQuestionIds));</span>
+<span class="nc" id="L76">        contestUser.setCurrentQuestionId(selectedQuestionIds.get(0));</span>
+<span class="nc" id="L77">        contestUser.setTotalScore(0);</span>
+<span class="nc" id="L78">        contestUser.setSubmitted(false);</span>
+<span class="nc" id="L79">        contestUser.setStartTime(LocalDateTime.now());</span>
+
+<span class="nc" id="L81">        contestUserMapper.insert(contestUser);</span>
+<span class="nc" id="L82">        log.info(&quot;Contest initialized successfully for user: userId={}, questionCount={}, firstQuestionId={}&quot;, </span>
+<span class="nc" id="L83">                userId, selectedQuestionIds.size(), selectedQuestionIds.get(0));</span>
+<span class="nc" id="L84">    }</span>
+
+    private boolean isContestRecordValid(ContestUser contestUser) {
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (contestUser == null) {</span>
+<span class="nc" id="L88">            return false;</span>
+        }
+        
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (Boolean.TRUE.equals(contestUser.getSubmitted())) {</span>
+<span class="nc" id="L92">            log.info(&quot;Contest record is valid (already submitted): userId={}&quot;, contestUser.getUserId());</span>
+<span class="nc" id="L93">            return true;</span>
+        }
+        
+<span class="nc" id="L96">        List&lt;Integer&gt; selectedQuestions = getSelectedQuestions(contestUser);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (selectedQuestions.isEmpty()) {</span>
+<span class="nc" id="L98">            log.warn(&quot;Contest record is invalid: selectedQuestions is empty for userId={}&quot;, contestUser.getUserId());</span>
+<span class="nc" id="L99">            return false;</span>
+        }
+        
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (contestUser.getCurrentQuestionId() == null) {</span>
+<span class="nc" id="L103">            log.warn(&quot;Contest record is invalid: currentQuestionId is null for userId={}&quot;, contestUser.getUserId());</span>
+<span class="nc" id="L104">            return false;</span>
+        }
+        
+<span class="nc" id="L107">        boolean currentQuestionExists = selectedQuestions.contains(contestUser.getCurrentQuestionId());</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (!currentQuestionExists) {</span>
+<span class="nc" id="L109">            log.warn(&quot;Contest record is invalid: currentQuestionId={} not in selectedQuestions for userId={}&quot;,</span>
+<span class="nc" id="L110">                    contestUser.getCurrentQuestionId(), contestUser.getUserId());</span>
+<span class="nc" id="L111">            return false;</span>
+        }
+        
+<span class="nc" id="L114">        log.info(&quot;Contest record is valid for userId={}: {} questions selected, currentQuestionId={}&quot;,</span>
+<span class="nc" id="L115">                contestUser.getUserId(), selectedQuestions.size(), contestUser.getCurrentQuestionId());</span>
+<span class="nc" id="L116">        return true;</span>
+    }
+
+    private List&lt;Integer&gt; selectRandomQuestions() {
+<span class="nc" id="L120">        List&lt;Integer&gt; selectedQuestions = new ArrayList&lt;&gt;();</span>
+        try {
+<span class="nc" id="L122">            List&lt;Category&gt; activeCategories = categoryMapper.selectActive();</span>
+<span class="nc" id="L123">            log.info(&quot;Found {} active categories for question selection&quot;, activeCategories.size());</span>
+            
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            if (activeCategories.isEmpty()) {</span>
+<span class="nc" id="L126">                log.warn(&quot;No active categories found! Checking all categories...&quot;);</span>
+<span class="nc" id="L127">                List&lt;Category&gt; allCategories = categoryMapper.selectAll();</span>
+<span class="nc" id="L128">                log.info(&quot;Total categories in database: {}&quot;, allCategories.size());</span>
+                
+<span class="nc bnc" id="L130" title="All 2 branches missed.">                for (Category cat : allCategories) {</span>
+<span class="nc" id="L131">                    log.info(&quot;Category: id={}, name={}, isActive={}&quot;, cat.getId(), cat.getName(), cat.getIsActive());</span>
+<span class="nc" id="L132">                }</span>
+<span class="nc" id="L133">                return selectedQuestions;</span>
+            }
+            
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            for (Category category : activeCategories) {</span>
+<span class="nc" id="L137">                log.info(&quot;Selecting random question from category: id={}, name={}&quot;, category.getId(), category.getName());</span>
+<span class="nc" id="L138">                Question q = questionMapper.selectRandomByCategory(category.getId());</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                if (q != null) {</span>
+<span class="nc" id="L140">                    selectedQuestions.add(q.getId());</span>
+<span class="nc" id="L141">                    log.info(&quot;Selected question: id={}, title={} from category {}&quot;, q.getId(), q.getTitle(), category.getName());</span>
+                } else {
+<span class="nc" id="L143">                    log.warn(&quot;No active questions found in category: id={}, name={}&quot;, category.getId(), category.getName());</span>
+                }
+<span class="nc" id="L145">            }</span>
+            
+<span class="nc" id="L147">            log.info(&quot;Total questions selected: {}&quot;, selectedQuestions.size());</span>
+<span class="nc" id="L148">        } catch (Exception e) {</span>
+<span class="nc" id="L149">            log.error(&quot;Error selecting random questions&quot;, e);</span>
+<span class="nc" id="L150">        }</span>
+<span class="nc" id="L151">        return selectedQuestions;</span>
+    }
+
+    public ContestUser getContestUserByUserId(Integer userId) {
+<span class="nc" id="L155">        return contestUserMapper.selectByUserId(userId);</span>
+    }
+
+    public List&lt;Integer&gt; getSelectedQuestions(ContestUser contestUser) {
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if (contestUser.getSelectedQuestions() == null) {</span>
+<span class="nc" id="L160">            return new ArrayList&lt;&gt;();</span>
+        }
+<span class="nc" id="L162">        List&lt;Integer&gt; questions = JsonUtil.fromJsonToList(contestUser.getSelectedQuestions(),</span>
+<span class="nc" id="L163">                new TypeReference&lt;List&lt;Integer&gt;&gt;() {});</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        return questions != null ? questions : new ArrayList&lt;&gt;();</span>
+    }
+
+    public Question getCurrentQuestion(Integer userId) {
+<span class="nc" id="L168">        ContestUser contestUser = contestUserMapper.selectByUserId(userId);</span>
+<span class="nc bnc" id="L169" title="All 4 branches missed.">        if (contestUser == null || contestUser.getCurrentQuestionId() == null) {</span>
+<span class="nc" id="L170">            return null;</span>
+        }
+<span class="nc" id="L172">        return questionMapper.selectById(contestUser.getCurrentQuestionId());</span>
+    }
+
+    public Question getQuestionById(Integer questionId) {
+<span class="nc" id="L176">        return questionMapper.selectById(questionId);</span>
+    }
+
+    public boolean submitAnswer(Integer userId, Integer questionId, String answer) {
+<span class="fc" id="L180">        log.info(&quot;Submitting answer: userId={}, questionId={}&quot;, userId, questionId);</span>
+
+<span class="fc" id="L182">        ContestUser contestUser = contestUserMapper.selectByUserId(userId);</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        if (contestUser == null) {</span>
+<span class="fc" id="L184">            log.warn(&quot;Contest user not found: userId={}&quot;, userId);</span>
+<span class="fc" id="L185">            return false;</span>
+        }
+
+<span class="fc" id="L188">        Question question = questionMapper.selectById(questionId);</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">        if (question == null) {</span>
+<span class="fc" id="L190">            log.warn(&quot;Question not found: questionId={}&quot;, questionId);</span>
+<span class="fc" id="L191">            return false;</span>
+        }
+
+<span class="fc" id="L194">        boolean isCorrect = question.getFlag().trim().equalsIgnoreCase(answer.trim());</span>
+
+<span class="fc" id="L196">        Submission existing = submissionMapper.selectByContestUserAndQuestion(contestUser.getId(), questionId);</span>
+<span class="pc bpc" id="L197" title="1 of 4 branches missed.">        boolean alreadyAnsweredCorrectly = existing != null &amp;&amp; existing.getIsCorrect();</span>
+
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        if (existing != null) {</span>
+<span class="fc" id="L200">            existing.setUserAnswer(answer);</span>
+<span class="fc" id="L201">            existing.setIsCorrect(isCorrect);</span>
+<span class="fc" id="L202">            submissionMapper.update(existing);</span>
+        } else {
+<span class="fc" id="L204">            Submission submission = new Submission();</span>
+<span class="fc" id="L205">            submission.setContestUserId(contestUser.getId());</span>
+<span class="fc" id="L206">            submission.setQuestionId(questionId);</span>
+<span class="fc" id="L207">            submission.setUserAnswer(answer);</span>
+<span class="fc" id="L208">            submission.setIsCorrect(isCorrect);</span>
+<span class="fc" id="L209">            submissionMapper.insert(submission);</span>
+        }
+
+<span class="fc bfc" id="L212" title="All 4 branches covered.">        if (isCorrect &amp;&amp; !alreadyAnsweredCorrectly) {</span>
+<span class="fc" id="L213">            int score = contestUser.getTotalScore() + question.getPoints();</span>
+<span class="fc" id="L214">            contestUser.setTotalScore(score);</span>
+<span class="fc" id="L215">            contestUserMapper.update(contestUser);</span>
+        }
+
+<span class="fc" id="L218">        log.info(&quot;Answer submitted: userId={}, questionId={}, correct={}&quot;, userId, questionId, isCorrect);</span>
+<span class="fc" id="L219">        return isCorrect;</span>
+    }
+
+    public void moveToNextQuestion(Integer userId) {
+<span class="nc" id="L223">        ContestUser contestUser = contestUserMapper.selectByUserId(userId);</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">        if (contestUser == null) {</span>
+<span class="nc" id="L225">            return;</span>
+        }
+
+<span class="nc" id="L228">        List&lt;Integer&gt; selectedQuestions = getSelectedQuestions(contestUser);</span>
+<span class="nc" id="L229">        int currentIndex = selectedQuestions.indexOf(contestUser.getCurrentQuestionId());</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        if (currentIndex &lt; selectedQuestions.size() - 1) {</span>
+<span class="nc" id="L231">            contestUser.setCurrentQuestionId(selectedQuestions.get(currentIndex + 1));</span>
+<span class="nc" id="L232">            contestUserMapper.update(contestUser);</span>
+        }
+<span class="nc" id="L234">    }</span>
+
+    public void moveToPreviousQuestion(Integer userId) {
+<span class="nc" id="L237">        ContestUser contestUser = contestUserMapper.selectByUserId(userId);</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (contestUser == null) {</span>
+<span class="nc" id="L239">            return;</span>
+        }
+
+<span class="nc" id="L242">        List&lt;Integer&gt; selectedQuestions = getSelectedQuestions(contestUser);</span>
+<span class="nc" id="L243">        int currentIndex = selectedQuestions.indexOf(contestUser.getCurrentQuestionId());</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        if (currentIndex &gt; 0) {</span>
+<span class="nc" id="L245">            contestUser.setCurrentQuestionId(selectedQuestions.get(currentIndex - 1));</span>
+<span class="nc" id="L246">            contestUserMapper.update(contestUser);</span>
+        }
+<span class="nc" id="L248">    }</span>
+
+    public void jumpToQuestion(Integer userId, Integer questionId) {
+<span class="nc" id="L251">        ContestUser contestUser = contestUserMapper.selectByUserId(userId);</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        if (contestUser == null) {</span>
+<span class="nc" id="L253">            return;</span>
+        }
+
+<span class="nc" id="L256">        List&lt;Integer&gt; selectedQuestions = getSelectedQuestions(contestUser);</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">        if (selectedQuestions.contains(questionId)) {</span>
+<span class="nc" id="L258">            contestUser.setCurrentQuestionId(questionId);</span>
+<span class="nc" id="L259">            contestUserMapper.update(contestUser);</span>
+        }
+<span class="nc" id="L261">    }</span>
+
+    public List&lt;RankingItem&gt; getRankings() {
+<span class="nc" id="L264">        List&lt;ContestUser&gt; contestUsers = contestUserMapper.selectAll();</span>
+<span class="nc" id="L265">        List&lt;RankingItem&gt; rankings = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L267" title="All 2 branches missed.">        for (ContestUser cu : contestUsers) {</span>
+<span class="nc" id="L268">            User user = userMapper.selectById(cu.getUserId());</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">            if (user == null) {</span>
+<span class="nc" id="L270">                continue;</span>
+            }
+
+<span class="nc" id="L273">            long useTime = 0;</span>
+<span class="nc bnc" id="L274" title="All 4 branches missed.">            if (cu.getSubmitTime() != null &amp;&amp; cu.getStartTime() != null) {</span>
+<span class="nc" id="L275">                useTime = ChronoUnit.SECONDS.between(cu.getStartTime(), cu.getSubmitTime());</span>
+            }
+
+<span class="nc" id="L278">            RankingItem item = new RankingItem();</span>
+<span class="nc" id="L279">            item.setStudentId(user.getStudentId());</span>
+<span class="nc" id="L280">            item.setFullName(user.getFullName());</span>
+<span class="nc" id="L281">            item.setScore(cu.getTotalScore());</span>
+<span class="nc" id="L282">            item.setUseTime(useTime);</span>
+<span class="nc" id="L283">            item.setSubmitted(cu.getSubmitted());</span>
+<span class="nc" id="L284">            item.setSubmitTime(cu.getSubmitTime());</span>
+<span class="nc" id="L285">            rankings.add(item);</span>
+<span class="nc" id="L286">        }</span>
+
+        // 排序：先按分数降序，再按用时升序
+<span class="nc" id="L289">        rankings.sort((a, b) -&gt; {</span>
+<span class="nc" id="L290">            int scoreCompare = b.getScore().compareTo(a.getScore());</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">            if (scoreCompare != 0) {</span>
+<span class="nc" id="L292">                return scoreCompare;</span>
+            }
+<span class="nc" id="L294">            return a.getUseTime().compareTo(b.getUseTime());</span>
+        });
+
+        // 设置排名
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        for (int i = 0; i &lt; rankings.size(); i++) {</span>
+<span class="nc" id="L299">            rankings.get(i).setRank(i + 1);</span>
+        }
+
+<span class="nc" id="L302">        return rankings;</span>
+    }
+
+    public void finalizeSubmission(Integer userId) {
+<span class="nc" id="L306">        ContestUser contestUser = contestUserMapper.selectByUserId(userId);</span>
+<span class="nc bnc" id="L307" title="All 2 branches missed.">        if (contestUser != null) {</span>
+<span class="nc" id="L308">            contestUser.setSubmitted(true);</span>
+<span class="nc" id="L309">            contestUser.setSubmitTime(LocalDateTime.now());</span>
+<span class="nc" id="L310">            contestUserMapper.update(contestUser);</span>
+<span class="nc" id="L311">            log.info(&quot;Contest submission finalized: userId={}&quot;, userId);</span>
+        }
+<span class="nc" id="L313">    }</span>
+
+    public int cleanupCorruptedContestRecords() {
+<span class="nc" id="L316">        log.info(&quot;Starting cleanup of corrupted contest records...&quot;);</span>
+        
+<span class="nc" id="L318">        List&lt;ContestUser&gt; allContestUsers = contestUserMapper.selectAll();</span>
+<span class="nc" id="L319">        int cleanedCount = 0;</span>
+        
+<span class="nc bnc" id="L321" title="All 2 branches missed.">        for (ContestUser cu : allContestUsers) {</span>
+<span class="nc bnc" id="L322" title="All 2 branches missed.">            if (Boolean.TRUE.equals(cu.getSubmitted())) {</span>
+<span class="nc" id="L323">                continue;</span>
+            }
+            
+<span class="nc bnc" id="L326" title="All 2 branches missed.">            if (!isContestRecordValid(cu)) {</span>
+<span class="nc" id="L327">                log.warn(&quot;Cleaning up corrupted record: contestUserId={}, userId={}, selectedQuestions={}, currentQuestionId={}&quot;,</span>
+<span class="nc" id="L328">                        cu.getId(), cu.getUserId(), cu.getSelectedQuestions(), cu.getCurrentQuestionId());</span>
+<span class="nc" id="L329">                contestUserMapper.delete(cu.getId());</span>
+<span class="nc" id="L330">                cleanedCount++;</span>
+            }
+<span class="nc" id="L332">        }</span>
+        
+<span class="nc" id="L334">        log.info(&quot;Cleanup completed. Removed {} corrupted contest records&quot;, cleanedCount);</span>
+<span class="nc" id="L335">        return cleanedCount;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

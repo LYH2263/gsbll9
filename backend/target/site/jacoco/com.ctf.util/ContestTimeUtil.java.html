@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContestTimeUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ctf-contest</a> &gt; <a href="index.source.html" class="el_package">com.ctf.util</a> &gt; <span class="el_source">ContestTimeUtil.java</span></div><h1>ContestTimeUtil.java</h1><pre class="source lang-java linenums">package com.ctf.util;
+
+import com.ctf.entity.ContestConfig;
+import com.ctf.mapper.ContestConfigMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+<span class="fc" id="L12">@Slf4j</span>
+@Component
+<span class="nc" id="L14">public class ContestTimeUtil {</span>
+
+    @Autowired
+    private ContestConfigMapper contestConfigMapper;
+
+<span class="fc" id="L19">    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern(&quot;yyyy-MM-dd HH:mm:ss&quot;);</span>
+
+    private LocalDateTime getStartTime() {
+<span class="nc" id="L22">        return getTimeFromConfig(&quot;contest.startTime&quot;, &quot;2025-01-04 15:30:00&quot;);</span>
+    }
+
+    private LocalDateTime getReadyTime() {
+<span class="nc" id="L26">        return getTimeFromConfig(&quot;contest.readyTime&quot;, &quot;2025-01-04 15:20:00&quot;);</span>
+    }
+
+    private LocalDateTime getEndTime() {
+<span class="nc" id="L30">        return getTimeFromConfig(&quot;contest.endTime&quot;, &quot;2025-01-04 16:30:00&quot;);</span>
+    }
+
+    private LocalDateTime getResultsTime() {
+<span class="nc" id="L34">        return getTimeFromConfig(&quot;contest.resultsTime&quot;, &quot;2025-01-04 17:00:00&quot;);</span>
+    }
+
+    private LocalDateTime getTimeFromConfig(String key, String defaultValue) {
+        try {
+<span class="nc" id="L39">            ContestConfig config = contestConfigMapper.selectByKey(key);</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            String value = config != null ? config.getConfigValue() : defaultValue;</span>
+<span class="nc" id="L41">            return LocalDateTime.parse(value, formatter);</span>
+<span class="nc" id="L42">        } catch (Exception e) {</span>
+<span class="nc" id="L43">            log.warn(&quot;Failed to parse time config for key: {}, using default: {}&quot;, key, defaultValue);</span>
+<span class="nc" id="L44">            return LocalDateTime.parse(defaultValue, formatter);</span>
+        }
+    }
+
+<span class="nc" id="L48">    public enum ContestStatus {</span>
+<span class="nc" id="L49">        NOT_STARTED, READY, RUNNING, FINISHED, RESULTS_PUBLISHED</span>
+    }
+
+    public ContestStatus getCurrentStatus() {
+<span class="nc" id="L53">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (now.isBefore(getReadyTime())) {</span>
+<span class="nc" id="L55">            return ContestStatus.NOT_STARTED;</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        } else if (now.isBefore(getStartTime())) {</span>
+<span class="nc" id="L57">            return ContestStatus.READY;</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        } else if (now.isBefore(getEndTime())) {</span>
+<span class="nc" id="L59">            return ContestStatus.RUNNING;</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        } else if (now.isBefore(getResultsTime())) {</span>
+<span class="nc" id="L61">            return ContestStatus.FINISHED;</span>
+        } else {
+<span class="nc" id="L63">            return ContestStatus.RESULTS_PUBLISHED;</span>
+        }
+    }
+
+    public Boolean canStartContest() {
+<span class="nc" id="L68">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="nc" id="L69">        return now.isAfter(getReadyTime());</span>
+    }
+
+    public Boolean isContestActive() {
+<span class="nc" id="L73">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="nc bnc" id="L74" title="All 4 branches missed.">        return now.isAfter(getStartTime()) &amp;&amp; now.isBefore(getEndTime());</span>
+    }
+
+    public Boolean isContestFinished() {
+<span class="nc" id="L78">        LocalDateTime now = LocalDateTime.now();</span>
+<span class="nc" id="L79">        return now.isAfter(getEndTime());</span>
+    }
+
+    public Long getRemainingTimeMillis() {
+<span class="nc" id="L83">        LocalDateTime now = LocalDateTime.now();</span>
+        LocalDateTime target;
+
+<span class="nc" id="L86">        ContestStatus status = getCurrentStatus();</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (status == ContestStatus.NOT_STARTED) {</span>
+<span class="nc" id="L88">            target = getReadyTime();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        } else if (status == ContestStatus.READY) {</span>
+<span class="nc" id="L90">            target = getStartTime();</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        } else if (status == ContestStatus.RUNNING) {</span>
+<span class="nc" id="L92">            target = getEndTime();</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        } else if (status == ContestStatus.FINISHED) {</span>
+<span class="nc" id="L94">            target = getResultsTime();</span>
+        } else {
+<span class="nc" id="L96">            return 0L;</span>
+        }
+
+<span class="nc" id="L99">        long millis = java.time.temporal.ChronoUnit.MILLIS.between(now, target);</span>
+<span class="nc" id="L100">        return Math.max(0, millis);</span>
+    }
+
+    public Long getContestStartTime() {
+<span class="nc" id="L104">        return getStartTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();</span>
+    }
+
+    public Long getContestEndTime() {
+<span class="nc" id="L108">        return getEndTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

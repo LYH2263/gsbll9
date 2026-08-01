@@ -1,0 +1,77 @@
+services:
+  # MySQL 数据库
+  db:
+    image: mysql:8.0
+    container_name: ctf-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ctf_db
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - ctf-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Spring Boot 后端
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ctf-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/ctf_db?useSSL=false&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+      TZ: Asia/Shanghai
+    ports:
+      - "8615:8615"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ctf-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Vue 前端 + Nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ctf-frontend
+    ports:
+      - "3615:80"
+    depends_on:
+      - backend
+    networks:
+      - ctf-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ctf-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local

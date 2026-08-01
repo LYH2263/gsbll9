@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ctf.mapper.SubmissionMapper">
+    <select id="selectById" resultType="Submission">
+        SELECT * FROM submissions WHERE id = #{id}
+    </select>
+
+    <select id="selectByContestUserAndQuestion" resultType="Submission">
+        SELECT * FROM submissions WHERE contest_user_id = #{contestUserId} AND question_id = #{questionId}
+    </select>
+
+    <select id="selectByContestUserId" resultType="Submission">
+        SELECT * FROM submissions WHERE contest_user_id = #{contestUserId} ORDER BY submitted_at ASC
+    </select>
+
+    <insert id="insert">
+        INSERT INTO submissions (contest_user_id, question_id, user_answer, is_correct)
+        VALUES (#{contestUserId}, #{questionId}, #{userAnswer}, #{isCorrect})
+    </insert>
+
+    <update id="update">
+        UPDATE submissions SET
+            user_answer = #{userAnswer},
+            is_correct = #{isCorrect}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM submissions WHERE id = #{id}
+    </delete>
+</mapper>

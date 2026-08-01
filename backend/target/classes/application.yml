@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: ctf-contest
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://db:3306/ctf_db?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    username: root
+    password: root
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      encoding: utf-8
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  mvc:
+    cors:
+      allowed-origins: "*"
+      allowed-methods: "*"
+      allowed-headers: "*"
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.ctf.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+server:
+  port: 8615
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    root: INFO
+    com.ctf: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/ctf-contest.log
+
+jwt:
+  secret: "your-secret-key-change-this-in-production-environment-with-at-least-256-bits"
+  expiration: 86400000
