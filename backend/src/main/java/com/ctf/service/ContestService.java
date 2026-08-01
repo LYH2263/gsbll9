@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -43,6 +44,9 @@ public class ContestService {
 
     @Autowired
     private ContestTimeUtil contestTimeUtil;
+
+    @Autowired
+    private ScoringService scoringService;
 
     public void initializeContestForUser(Integer userId) {
         log.info("Initializing contest for user: userId={}", userId);
@@ -176,6 +180,7 @@ public class ContestService {
         return questionMapper.selectById(questionId);
     }
 
+    @Transactional
     public boolean submitAnswer(Integer userId, Integer questionId, String answer) {
         log.info("Submitting answer: userId={}, questionId={}", userId, questionId);
 
@@ -210,9 +215,9 @@ public class ContestService {
         }
 
         if (isCorrect && !alreadyAnsweredCorrectly) {
-            int score = contestUser.getTotalScore() + question.getPoints();
-            contestUser.setTotalScore(score);
-            contestUserMapper.update(contestUser);
+            // 计分与一血入库委托独立的 ScoringService（条款 A2）；同一事务路径完成入账分累加与一血落库（§5），
+            // 避免「榜上加分但一血表无行」或相反的撕裂。入账分语义来自 questions.points，禁止写死 +1。
+            scoringService.awardForCorrectSubmission(contestUser, question);
         }
 
         log.info("Answer submitted: userId={}, questionId={}, correct={}", userId, questionId, isCorrect);

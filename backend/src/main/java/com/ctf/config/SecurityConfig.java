@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/contest/announcements/latest").permitAll()
                         .requestMatchers("/api/contest/**").authenticated()
                         .requestMatchers("/api/admin/**").authenticated()
+                        .requestMatchers("/api/scoring/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

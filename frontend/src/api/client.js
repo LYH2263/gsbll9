@@ -76,4 +76,12 @@ export const adminAPI = {
   withdrawAnnouncement: (id) => apiClient.post(`/admin/announcements/${id}/withdraw`),
 }
 
+// 动态计分与一血模块（P0：管理端一血只读；P1：衰减/奖金配置读写；P2：计分概览）。API 前缀 /scoring 自第一轮起冻结，后轮只扩展。
+export const scoringAPI = {
+  getFirstBloods: () => apiClient.get('/scoring/first-bloods'),
+  getConfig: () => apiClient.get('/scoring/config'),
+  updateConfig: (config) => apiClient.put('/scoring/config', config),
+  getOverview: () => apiClient.get('/scoring/overview'),
+}
+
 export default apiClient

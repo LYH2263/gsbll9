@@ -46,6 +46,9 @@ public class ContestController {
     @Autowired
     private AnnouncementService announcementService;
 
+    @Autowired
+    private com.ctf.service.ScoringService scoringService;
+
     private Integer getUserIdFromToken(String token) {
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);
@@ -143,7 +146,9 @@ public class ContestController {
                                             @RequestBody SubmitAnswerRequest request) {
         Integer userId = getUserIdFromToken(token);
 
-        if (!contestTimeUtil.isContestActive()) {
+        // C1/C2 门禁与计分保持一致：赛前拒绝；赛后是否可提交取决于 scoring.freeze_on_end。
+        // Service 层 awardForCorrectSubmission 亦独立强制该门禁，避免只拦 Controller 被绕过。
+        if (!scoringService.isAccrualAllowed()) {
             throw new IllegalArgumentException("Contest is not active");
         }
 
