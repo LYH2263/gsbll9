@@ -14,6 +14,10 @@
         SELECT * FROM submissions WHERE contest_user_id = #{contestUserId} ORDER BY submitted_at ASC
     </select>
 
+    <select id="countCorrectByQuestionId" resultType="int">
+        SELECT COUNT(*) FROM submissions WHERE question_id = #{questionId} AND is_correct = TRUE FOR UPDATE
+    </select>
+
     <insert id="insert">
         INSERT INTO submissions (contest_user_id, question_id, user_answer, is_correct)
         VALUES (#{contestUserId}, #{questionId}, #{userAnswer}, #{isCorrect})

@@ -13,6 +13,7 @@ import com.ctf.service.AnnouncementService;
 import com.ctf.service.AuthService;
 import com.ctf.service.ContestService;
 import com.ctf.service.HintService;
+import com.ctf.service.ScoringService;
 import com.ctf.util.ContestTimeUtil;
 import com.ctf.util.JwtTokenUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,9 @@ public class ContestController {
     @Autowired
     private AnnouncementService announcementService;
 
+    @Autowired
+    private ScoringService scoringService;
+
     private Integer getUserIdFromToken(String token) {
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);
@@ -65,6 +69,7 @@ public class ContestController {
         response.setRemainingTime(remainingTime);
         response.setCanStartContest(canStart);
         response.setContestActive(isActive);
+        response.setScoringAllowed(scoringService.isScoringActive());
 
         switch (status) {
             case NOT_STARTED:
@@ -142,10 +147,6 @@ public class ContestController {
     public ApiResponse<Boolean> submitAnswer(@RequestHeader("Authorization") String token,
                                             @RequestBody SubmitAnswerRequest request) {
         Integer userId = getUserIdFromToken(token);
-
-        if (!contestTimeUtil.isContestActive()) {
-            throw new IllegalArgumentException("Contest is not active");
-        }
 
         boolean isCorrect = contestService.submitAnswer(userId, request.getQuestionId(), request.getAnswer());
         return ApiResponse.success(isCorrect, isCorrect ? "Correct answer" : "Wrong answer");

@@ -9,6 +9,7 @@ import java.util.List;
 @Mapper
 public interface QuestionMapper {
     Question selectById(@Param("id") Integer id);
+    Question selectByIdForUpdate(@Param("id") Integer id);
     List<Question> selectAll();
     List<Question> selectByCategoryId(@Param("categoryId") Integer categoryId);
     List<Question> selectActiveByCategoryId(@Param("categoryId") Integer categoryId);

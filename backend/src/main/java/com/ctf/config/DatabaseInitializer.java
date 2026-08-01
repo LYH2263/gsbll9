@@ -36,6 +36,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             initializeCategories();
             initializeQuestions();
             initializeContestConfig();
+            initializeScoringConfig();
             log.info("数据库初始化完成！");
         } catch (Exception e) {
             log.error("数据库初始化失败: {}", e.getMessage(), e);
@@ -139,7 +140,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             question.setTitle((String) q[1]);
             question.setDescription((String) q[2]);
             question.setFlag((String) q[3]);
-            question.setPoints(1); // 每题1分
+            question.setPoints(defaultPointsByDifficulty((String) q[4]));
             question.setDifficulty((String) q[4]);
             question.setOrderNum((Integer) q[5]);
             question.setIsActive(true);
@@ -148,6 +149,16 @@ public class DatabaseInitializer implements CommandLineRunner {
             questionMapper.insert(question);
         }
         log.info("创建了 {} 道示例题目", questions.length);
+    }
+
+    private int defaultPointsByDifficulty(String difficulty) {
+        if ("easy".equals(difficulty)) {
+            return 100;
+        }
+        if ("hard".equals(difficulty)) {
+            return 300;
+        }
+        return 200;
     }
     
     private void initializeContestConfig() {
@@ -173,6 +184,21 @@ public class DatabaseInitializer implements CommandLineRunner {
         upsertConfig("contest.resultsTime", resultsTime);
         
         log.info("比赛配置初始化完成，默认开始时间: {}", startTime);
+    }
+
+    private void initializeScoringConfig() {
+        insertIfAbsent("scoring.min_points", "1");
+        insertIfAbsent("scoring.decay_step", "0");
+        insertIfAbsent("scoring.first_blood_bonus", "0");
+        insertIfAbsent("scoring.freeze_on_end", "true");
+        insertIfAbsent("scoring.overview_timezone", "Asia/Shanghai");
+        log.info("动态计分配置初始化完成");
+    }
+
+    private void insertIfAbsent(String key, String value) {
+        if (contestConfigMapper.selectByKey(key) == null) {
+            upsertConfig(key, value);
+        }
     }
     
     private void upsertConfig(String key, String value) {

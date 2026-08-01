@@ -6,6 +6,10 @@
         SELECT * FROM questions WHERE id = #{id}
     </select>
 
+    <select id="selectByIdForUpdate" resultType="Question">
+        SELECT * FROM questions WHERE id = #{id} FOR UPDATE
+    </select>
+
     <select id="selectAll" resultType="Question">
         SELECT * FROM questions ORDER BY category_id ASC, order_num ASC
     </select>

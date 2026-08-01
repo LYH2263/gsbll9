@@ -112,6 +112,24 @@ CREATE TABLE IF NOT EXISTS hint_unlocks (
     INDEX idx_hint_unlocks_user (contest_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='提示解锁记录表';
 
+-- 创建一血记录表（动态计分与一血模块 P0）
+-- 同一题目至多一条一血，question_id 库级唯一约束；一血仅由服务端在正确提交时写入
+CREATE TABLE IF NOT EXISTS first_bloods (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '一血记录ID',
+    question_id INT NOT NULL COMMENT '题目ID',
+    user_id INT NOT NULL COMMENT '达成一血的用户ID',
+    contest_user_id INT NULL COMMENT '比赛用户ID（冗余，便于与contest_users/submissions对齐）',
+    bonus_points INT NOT NULL DEFAULT 0 COMMENT '本次一血实际发放的奖金（发放时定格，便于概览精确求和）',
+    achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '达成一血时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_first_blood_question (question_id),
+    INDEX idx_first_blood_user (user_id),
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (contest_user_id) REFERENCES contest_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='一血记录表';
+
 -- 创建公告表
 CREATE TABLE IF NOT EXISTS announcements (
     id INT PRIMARY KEY AUTO_INCREMENT COMMENT '公告ID',
@@ -121,4 +139,17 @@ CREATE TABLE IF NOT EXISTS announcements (
     INDEX idx_announcements_active (is_active),
     INDEX idx_announcements_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='公告表';
+
+-- P2 升级：为已存在的 first_bloods 表补充 bonus_points 列（幂等，旧库升级用）
+SET @db_name = DATABASE();
+SET @col_exists = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @db_name AND TABLE_NAME = 'first_bloods' AND COLUMN_NAME = 'bonus_points'
+);
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE first_bloods ADD COLUMN bonus_points INT NOT NULL DEFAULT 0 COMMENT ''本次一血实际发放的奖金'' AFTER contest_user_id',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 

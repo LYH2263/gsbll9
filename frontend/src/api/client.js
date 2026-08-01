@@ -46,6 +46,13 @@ export const contestAPI = {
   getLatestAnnouncement: () => apiClient.get('/contest/announcements/latest'),
 }
 
+export const scoringAPI = {
+  getFirstBloods: () => apiClient.get('/scoring/first-bloods'),
+  getOverview: () => apiClient.get('/scoring/overview'),
+  getConfig: () => apiClient.get('/scoring/config'),
+  updateConfig: (config) => apiClient.put('/scoring/config', config),
+}
+
 export const adminAPI = {
   getUsers: () => apiClient.get('/admin/users'),
   createUser: (user) => apiClient.post('/admin/users', user),
