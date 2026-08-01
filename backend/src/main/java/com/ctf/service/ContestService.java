@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -40,6 +41,9 @@ public class ContestService {
 
     @Autowired
     private SubmissionMapper submissionMapper;
+
+    @Autowired
+    private ScoringService scoringService;
 
     @Autowired
     private ContestTimeUtil contestTimeUtil;
@@ -176,6 +180,7 @@ public class ContestService {
         return questionMapper.selectById(questionId);
     }
 
+    @Transactional
     public boolean submitAnswer(Integer userId, Integer questionId, String answer) {
         log.info("Submitting answer: userId={}, questionId={}", userId, questionId);
 
@@ -210,9 +215,7 @@ public class ContestService {
         }
 
         if (isCorrect && !alreadyAnsweredCorrectly) {
-            int score = contestUser.getTotalScore() + question.getPoints();
-            contestUser.setTotalScore(score);
-            contestUserMapper.update(contestUser);
+            scoringService.awardCorrectSolve(contestUser, question);
         }
 
         log.info("Answer submitted: userId={}, questionId={}, correct={}", userId, questionId, isCorrect);
