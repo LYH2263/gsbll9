@@ -43,6 +43,9 @@ class ContestServiceTest {
     @Mock
     private ContestTimeUtil contestTimeUtil;
 
+    @Mock
+    private ScoringService scoringService;
+
     @InjectMocks
     private ContestService contestService;
 
@@ -62,8 +65,8 @@ class ContestServiceTest {
     }
 
     @Test
-    @DisplayName("首次提交正确答案 → 分数增加")
-    void submitCorrectAnswerFirstTime_shouldIncreaseScore() {
+    @DisplayName("首次提交正确答案 → 委托计分模块入账")
+    void submitCorrectAnswerFirstTime_shouldDelegateToScoringService() {
         ContestUser contestUser = createContestUser(0);
         Question question = createQuestion(correctAnswer, 100);
 
@@ -75,8 +78,7 @@ class ContestServiceTest {
 
         assertTrue(result);
         verify(submissionMapper).insert(any(Submission.class));
-        verify(contestUserMapper).update(contestUser);
-        assertEquals(100, contestUser.getTotalScore());
+        verify(scoringService).recordCorrectSolve(contestUser, question);
     }
 
     @Test
@@ -93,7 +95,7 @@ class ContestServiceTest {
 
         assertFalse(result);
         verify(submissionMapper).insert(any(Submission.class));
-        verify(contestUserMapper, never()).update(contestUser);
+        verify(scoringService, never()).recordCorrectSolve(any(), any());
         assertEquals(50, contestUser.getTotalScore());
     }
 
@@ -112,7 +114,48 @@ class ContestServiceTest {
 
         assertTrue(result);
         verify(submissionMapper).update(existingSubmission);
-        verify(contestUserMapper, never()).update(contestUser);
+        verify(scoringService, never()).recordCorrectSolve(any(), any());
+        assertEquals(100, contestUser.getTotalScore());
+    }
+
+    @Test
+    @DisplayName("已答对后提交错误答案 → 正确行不被降级，且不重复入账")
+    void submitWrongAnswerAfterAlreadyCorrect_shouldNotDowngradeNorRescore() {
+        ContestUser contestUser = createContestUser(100);
+        Question question = createQuestion(correctAnswer, 100);
+        Submission existingSubmission = createSubmission(true);
+
+        when(contestUserMapper.selectByUserId(userId)).thenReturn(contestUser);
+        when(questionMapper.selectById(questionId)).thenReturn(question);
+        when(submissionMapper.selectByContestUserAndQuestion(contestUserId, questionId)).thenReturn(existingSubmission);
+
+        boolean result = contestService.submitAnswer(userId, questionId, wrongAnswer);
+
+        assertFalse(result);
+        verify(submissionMapper).update(existingSubmission);
+        // 正确状态保持 true，后续再答对也不会触发第二次入账
+        assertTrue(existingSubmission.getIsCorrect());
+        verify(scoringService, never()).recordCorrectSolve(any(), any());
+        assertEquals(100, contestUser.getTotalScore());
+    }
+
+    @Test
+    @DisplayName("已答对→答错→再答对 → 全程至多入账一次")
+    void resubmitCorrectAfterDowngrade_shouldNotRescore() {
+        ContestUser contestUser = createContestUser(100);
+        Question question = createQuestion(correctAnswer, 100);
+        Submission existingSubmission = createSubmission(true);
+
+        when(contestUserMapper.selectByUserId(userId)).thenReturn(contestUser);
+        when(questionMapper.selectById(questionId)).thenReturn(question);
+        when(submissionMapper.selectByContestUserAndQuestion(contestUserId, questionId)).thenReturn(existingSubmission);
+
+        // 先答错（行保持正确），再答对：alreadyAnsweredCorrectly 始终为 true
+        contestService.submitAnswer(userId, questionId, wrongAnswer);
+        boolean result = contestService.submitAnswer(userId, questionId, correctAnswer);
+
+        assertTrue(result);
+        verify(scoringService, never()).recordCorrectSolve(any(), any());
         assertEquals(100, contestUser.getTotalScore());
     }
 

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ctf.mapper.FirstBloodMapper">
+    <select id="selectById" resultType="FirstBlood">
+        SELECT * FROM first_bloods WHERE id = #{id}
+    </select>
+
+    <select id="selectByQuestionId" resultType="FirstBlood">
+        SELECT * FROM first_bloods WHERE question_id = #{questionId}
+    </select>
+
+    <insert id="insertIgnore">
+        INSERT IGNORE INTO first_bloods (question_id, user_id, contest_user_id, bonus_awarded)
+        VALUES (#{questionId}, #{userId}, #{contestUserId}, #{bonusAwarded})
+    </insert>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM first_bloods
+    </select>
+
+    <select id="sumBonusAwarded" resultType="int">
+        SELECT COALESCE(SUM(bonus_awarded), 0) FROM first_bloods
+    </select>
+
+    <select id="selectAllWithDetail" resultType="com.ctf.dto.scoring.FirstBloodItem">
+        SELECT
+            fb.question_id AS questionId,
+            q.title AS questionTitle,
+            fb.user_id AS userId,
+            u.student_id AS studentId,
+            u.full_name AS fullName,
+            fb.achieved_at AS achievedAt
+        FROM first_bloods fb
+        JOIN questions q ON q.id = fb.question_id
+        JOIN users u ON u.id = fb.user_id
+        ORDER BY fb.achieved_at ASC
+    </select>
+</mapper>

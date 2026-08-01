@@ -37,4 +37,8 @@
     <delete id="delete">
         DELETE FROM contest_users WHERE id = #{id}
     </delete>
+
+    <update id="addScore">
+        UPDATE contest_users SET total_score = total_score + #{delta} WHERE id = #{id}
+    </update>
 </mapper>

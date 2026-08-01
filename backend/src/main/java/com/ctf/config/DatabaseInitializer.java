@@ -139,7 +139,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             question.setTitle((String) q[1]);
             question.setDescription((String) q[2]);
             question.setFlag((String) q[3]);
-            question.setPoints(1); // 每题1分
+            // 基础分（questions.points）按难度分层，体现可配置基础分；管理端可随时调整
+            question.setPoints(basePointsByDifficulty((String) q[4]));
             question.setDifficulty((String) q[4]);
             question.setOrderNum((Integer) q[5]);
             question.setIsActive(true);
@@ -148,6 +149,18 @@ public class DatabaseInitializer implements CommandLineRunner {
             questionMapper.insert(question);
         }
         log.info("创建了 {} 道示例题目", questions.length);
+    }
+
+    private int basePointsByDifficulty(String difficulty) {
+        switch (difficulty) {
+            case "easy":
+                return 50;
+            case "hard":
+                return 200;
+            case "medium":
+            default:
+                return 100;
+        }
     }
     
     private void initializeContestConfig() {
